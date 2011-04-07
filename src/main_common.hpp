@@ -230,10 +230,11 @@ int find_device(const char* pre_device, bool verbose, bool list_devices,
 
 static void usage(char* cmd, unsigned thr_misclick)
 {
-    fprintf(stderr, "Usage: %s [-h|--help] [-v|--verbose] [--list] [--device <device name or id>] [--precalib <minx> <maxx> <miny> <maxy>] [--misclick <nr of pixels>] [--output-type <auto|xorg.conf.d|hal|xinput>] [--fake]\n", cmd);
+    fprintf(stderr, "Usage: %s [-h|--help] [-v|--verbose] [--list] [--no-instructions] [--device <device name or id>] [--precalib <minx> <maxx> <miny> <maxy>] [--misclick <nr of pixels>] [--output-type <auto|xorg.conf.d|hal|xinput>] [--fake]\n", cmd);
     fprintf(stderr, "\t-h, --help: print this help message\n");
     fprintf(stderr, "\t-v, --verbose: print debug messages during the process\n");
     fprintf(stderr, "\t--list: list calibratable input devices and quit\n");
+    fprintf(stderr, "\t--no-instructions: output xorg.conf values without instructions\n");
     fprintf(stderr, "\t--device <device name or id>: select a specific device to calibrate\n");
     fprintf(stderr, "\t--precalib: manually provide the current calibration setting (eg. the values in xorg.conf)\n");
     fprintf(stderr, "\t--misclick: set the misclick threshold (0=off, default: %i pixels)\n",
@@ -249,6 +250,7 @@ Calibrator* main_common(int argc, char** argv)
     bool list_devices = false;
     bool fake = false;
     bool precalib = false;
+    bool no_instructions = false;
     XYinfo pre_axys;
     const char* pre_device = NULL;
     unsigned thr_misclick = 15;
@@ -275,6 +277,10 @@ Calibrator* main_common(int argc, char** argv)
             // Just list devices ?
             if (strcmp("--list", argv[i]) == 0) {
                 list_devices = true;
+            } else
+
+            if (strcmp("--no-instructions", argv[i]) == 0) {
+                no_instructions = true;
             } else
 
             // Select specific device ?
@@ -432,5 +438,5 @@ Calibrator* main_common(int argc, char** argv)
 
     // lastly, presume a standard Xorg driver (evtouch, mutouch, ...)
     return new CalibratorXorgPrint(device_name, device_axys,
-            verbose, thr_misclick, thr_doubleclick, output_type);
+            verbose, no_instructions, thr_misclick, thr_doubleclick, output_type);
 }
