@@ -85,7 +85,7 @@ bool CalibratorXorgPrint::output_xorgconfd(const XYinfo new_axys, int swap_xy, i
 {
     const char* sysfs_name = get_sysfs_name();
     bool not_sysfs_name = (sysfs_name == NULL);
-    if (not_sysfs_name)
+    if (not_sysfs_name && !no_instructions)
         sysfs_name = "!!Name_Of_TouchScreen!!";
 
     // xorg.conf.d snippet
@@ -114,19 +114,21 @@ bool CalibratorXorgPrint::output_hal(const XYinfo new_axys, int swap_xy, int new
         sysfs_name = "!!Name_Of_TouchScreen!!";
 
     // HAL policy output
-    printf("  copy the policy below into '/etc/hal/fdi/policy/touchscreen.fdi'\n\
-<match key=\"info.product\" contains=\"%s\">\n\
-  <merge key=\"input.x11_options.minx\" type=\"string\">%d</merge>\n\
-  <merge key=\"input.x11_options.maxx\" type=\"string\">%d</merge>\n\
-  <merge key=\"input.x11_options.miny\" type=\"string\">%d</merge>\n\
-  <merge key=\"input.x11_options.maxy\" type=\"string\">%d</merge>\n"
-     , sysfs_name, new_axys.x_min, new_axys.x_max, new_axys.y_min, new_axys.y_max);
-    if (swap_xy != 0)
-        printf("  <merge key=\"input.x11_options.swapxy\" type=\"string\">%d</merge>\n", new_swap_xy);
-    printf("</match>\n");
+    if (!no_instructions)
+	{
+	    printf("  copy the policy below into '/etc/hal/fdi/policy/touchscreen.fdi'\n\
+	<match key=\"info.product\" contains=\"%s\">\n\
+	  <merge key=\"input.x11_options.minx\" type=\"string\">%d</merge>\n\
+	  <merge key=\"input.x11_options.maxx\" type=\"string\">%d</merge>\n\
+	  <merge key=\"input.x11_options.miny\" type=\"string\">%d</merge>\n\
+	  <merge key=\"input.x11_options.maxy\" type=\"string\">%d</merge>\n"
+	     , sysfs_name, new_axys.x_min, new_axys.x_max, new_axys.y_min, new_axys.y_max);
+	    if (swap_xy != 0)
+		printf("  <merge key=\"input.x11_options.swapxy\" type=\"string\">%d</merge>\n", new_swap_xy);
+	    printf("</match>\n");
 
-    if (not_sysfs_name && !no_instructions)
-        printf("\nChange '%s' to your device's name in the config above.\n", sysfs_name);
-
+	    if (not_sysfs_name && !no_instructions)
+		printf("\nChange '%s' to your device's name in the config above.\n", sysfs_name);
+	}
     return true;
 }
