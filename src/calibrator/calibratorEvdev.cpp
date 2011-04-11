@@ -48,6 +48,7 @@ private:
     int old_swap_xy;
 public:
     CalibratorEvdev(const char* const device_name, const XYinfo& axys, const bool verbose,
+	const bool no_instructions_, 
         XID device_id=(XID)-1, const int thr_misclick=0, const int thr_doubleclick=0,
         const OutputType output_type=OUTYPE_AUTO);
     ~CalibratorEvdev();
@@ -65,10 +66,11 @@ protected:
     bool output_xorgconfd(const XYinfo new_axys, int swap_xy, int new_swap_xy);
     bool output_hal(const XYinfo new_axys, int swap_xy, int new_swap_xy);
     bool output_xinput(const XYinfo new_axys, int swap_xy, int new_swap_xy);
+    bool no_instructions; 
 };
 
-CalibratorEvdev::CalibratorEvdev(const char* const device_name0, const XYinfo& axys0, const bool verbose0, XID device_id, const int thr_misclick, const int thr_doubleclick, const OutputType output_type)
-  : Calibrator(device_name0, axys0, verbose0, thr_misclick, thr_doubleclick, output_type), old_swap_xy(0)
+CalibratorEvdev::CalibratorEvdev(const char* const device_name0, const XYinfo& axys0, const bool verbose0, const bool no_instructions_, XID device_id, const int thr_misclick, const int thr_doubleclick, const OutputType output_type)
+  : Calibrator(device_name0, axys0, verbose0, thr_misclick, thr_doubleclick, output_type), old_swap_xy(0), no_instructions(no_instructions_)
 {
     // init
     display = XOpenDisplay(NULL);
@@ -120,7 +122,7 @@ CalibratorEvdev::CalibratorEvdev(const char* const device_name0, const XYinfo& a
             throw WrongCalibratorException("Evdev: invalid \"Evdev Axis Calibration\" property format");
 
         } else if (nitems == 0) {
-            if (verbose)
+            if (verbose && !no_instructions)
                 printf("DEBUG: Evdev Axis Calibration not set, setting to axis valuators to be sure.\n");
 
             // No axis calibration set, set it to the default one
@@ -129,7 +131,7 @@ CalibratorEvdev::CalibratorEvdev(const char* const device_name0, const XYinfo& a
             // not setting the values here would result in a wrong first calibration
             bool ok = set_calibration(old_axys);
 
-            if (verbose) {
+            if (verbose && !no_instructions) {
                 if (ok)
                     printf("DEBUG: Successfully applied axis calibration.\n");
                 else
@@ -161,16 +163,19 @@ CalibratorEvdev::CalibratorEvdev(const char* const device_name0, const XYinfo& a
         if (act_format == 8 && act_type == XA_INTEGER && nitems == 1) {
             old_swap_xy = *((char*)data);
 
-            if (verbose)
+            if (verbose && !no_instructions)
                 printf("DEBUG: Read axes swap value of %i.\n", old_swap_xy);
         }
     }
     // TODO? evdev < 2.3.2 with swap_xy had a bug which calibrated before swapping (eg X calib on Y axis)
     // see http://cgit.freedesktop.org/xorg/driver/xf86-input-evdev/commit/?h=evdev-2.3-branch&id=3772676fd65065b43a94234127537ab5030b09f8
 
-    printf("Calibrating EVDEV driver for \"%s\" id=%i\n", device_name, (int)device_id);
-    printf("\tcurrent calibration values (from XInput): min_x=%d, max_x=%d and min_y=%d, max_y=%d\n",
-                old_axys.x_min, old_axys.x_max, old_axys.y_min, old_axys.y_max);
+    if (!no_instructions)
+    { 
+	    printf("Calibrating EVDEV driver for \"%s\" id=%i\n", device_name, (int)device_id);
+	    printf("\tcurrent calibration values (from XInput): min_x=%d, max_x=%d and min_y=%d, max_y=%d\n",
+		        old_axys.x_min, old_axys.x_max, old_axys.y_min, old_axys.y_max);
+    }
 #endif // HAVE_XI_PROP
 
 }
@@ -187,39 +192,39 @@ bool CalibratorEvdev::finish_data(const XYinfo new_axys, int swap_xy)
     // swap x and y axis, indicated by swap_xy
     // new value is old value (could have been 0 or 1) swapped:
     int new_swap_xy = 1 - old_swap_xy;
-
-    printf("\nDoing dynamic recalibration:\n");
+    if (!no_instructions)
+       printf("\nDoing dynamic recalibration:\n");
     // Evdev Axes Swap
     if (swap_xy) {
-        printf("\tSwapping X and Y axis...\n");
+        if (!no_instructions) printf("\tSwapping X and Y axis...\n");
         bool ok = set_swapxy(new_swap_xy);
         success &= ok;
 
         if (verbose) {
             if (ok)
-                printf("DEBUG: Successfully swapped X and Y axis.\n");
+                 {if (!no_instructions) printf("DEBUG: Successfully swapped X and Y axis.\n");}
             else
-                printf("DEBUG: Failed to swap X and Y axis.\n");
+                 {if (!no_instructions) printf("DEBUG: Failed to swap X and Y axis.\n");}
         }
     }
 
     // Evdev Axis Calibration
-    printf("\tSetting new calibration data: %d, %d, %d, %d\n", new_axys.x_min, new_axys.x_max, new_axys.y_min, new_axys.y_max);
+    if (!no_instructions) printf("\tSetting new calibration data: %d, %d, %d, %d\n", new_axys.x_min, new_axys.x_max, new_axys.y_min, new_axys.y_max);
     bool ok = set_calibration(new_axys);
     success &= ok;
 
     if (verbose) {
         if (ok)
-            printf("DEBUG: Successfully applied axis calibration.\n");
+            if (!no_instructions) {printf("DEBUG: Successfully applied axis calibration.\n");}
         else
-            printf("DEBUG: Failed to apply axis calibration.\n");
+            if (!no_instructions) {printf("DEBUG: Failed to apply axis calibration.\n");}
     }
     // close
     XSync(display, False);
 
 
 
-    printf("\n\n--> Making the calibration permanent <--\n");
+    if (!no_instructions) printf("\n\n--> Making the calibration permanent <--\n");
     switch (output_type) {
         case OUTYPE_AUTO:
             // xorg.conf.d or alternatively xinput commands
@@ -466,11 +471,13 @@ bool CalibratorEvdev::output_xorgconfd(const XYinfo new_axys, int swap_xy, int n
 {
     const char* sysfs_name = get_sysfs_name();
     bool not_sysfs_name = (sysfs_name == NULL);
-    if (not_sysfs_name)
+    if (not_sysfs_name && !no_instructions)
         sysfs_name = "!!Name_Of_TouchScreen!!";
 
+    
+
     // xorg.conf.d snippet
-    printf("  copy the snippet below into '/etc/X11/xorg.conf.d/99-calibration.conf'\n");
+    if (!no_instructions) printf("  copy the snippet below into '/etc/X11/xorg.conf.d/99-calibration.conf'\n");
     printf("Section \"InputClass\"\n");
     printf("	Identifier	\"calibration\"\n");
     printf("	MatchProduct	\"%s\"\n", sysfs_name);
@@ -481,7 +488,7 @@ bool CalibratorEvdev::output_xorgconfd(const XYinfo new_axys, int swap_xy, int n
     printf("EndSection\n");
 
     if (not_sysfs_name)
-        printf("\nChange '%s' to your device's name in the snippet above.\n", sysfs_name);
+        if (!no_instructions) printf("\nChange '%s' to your device's name in the snippet above.\n", sysfs_name);
 
     return true;
 }
@@ -490,31 +497,33 @@ bool CalibratorEvdev::output_hal(const XYinfo new_axys, int swap_xy, int new_swa
 {
     const char* sysfs_name = get_sysfs_name();
     bool not_sysfs_name = (sysfs_name == NULL);
-    if (not_sysfs_name)
+    if (not_sysfs_name && !no_instructions)
         sysfs_name = "!!Name_Of_TouchScreen!!";
 
-    // HAL policy output
-    printf("  copy the policy below into '/etc/hal/fdi/policy/touchscreen.fdi'\n\
-<match key=\"info.product\" contains=\"%s\">\n\
-  <merge key=\"input.x11_options.calibration\" type=\"string\">%d %d %d %d</merge>\n"
-     , sysfs_name, new_axys.x_min, new_axys.x_max, new_axys.y_min, new_axys.y_max);
-    if (swap_xy != 0)
-        printf("  <merge key=\"input.x11_options.swapaxes\" type=\"string\">%d</merge>\n", new_swap_xy);
-    printf("</match>\n");
+   if (!no_instructions)
+   {
+	    // HAL policy output
+	    printf("  copy the policy below into '/etc/hal/fdi/policy/touchscreen.fdi'\n\
+	<match key=\"info.product\" contains=\"%s\">\n\
+	  <merge key=\"input.x11_options.calibration\" type=\"string\">%d %d %d %d</merge>\n"
+	     , sysfs_name, new_axys.x_min, new_axys.x_max, new_axys.y_min, new_axys.y_max);
+	    if (swap_xy != 0)
+		printf("  <merge key=\"input.x11_options.swapaxes\" type=\"string\">%d</merge>\n", new_swap_xy);
+	    printf("</match>\n");
 
-    if (not_sysfs_name)
-        printf("\nChange '%s' to your device's name in the config above.\n", sysfs_name);
-
+	    if (not_sysfs_name)
+		printf("\nChange '%s' to your device's name in the config above.\n", sysfs_name);
+    }
     return true;
 }
 
 bool CalibratorEvdev::output_xinput(const XYinfo new_axys, int swap_xy, int new_swap_xy)
 {
     // create startup script
-    printf("  Install the 'xinput' tool and copy the command(s) below in a script that starts with your X session\n");
-    printf("    xinput set-int-prop \"%s\" \"Evdev Axis Calibration\" 32 %d %d %d %d\n", device_name, new_axys.x_min, new_axys.x_max, new_axys.y_min, new_axys.y_max);
+    if (!no_instructions) printf("  Install the 'xinput' tool and copy the command(s) below in a script that starts with your X session\n");
+    if (!no_instructions) printf("    xinput set-int-prop \"%s\" \"Evdev Axis Calibration\" 32 %d %d %d %d\n", device_name, new_axys.x_min, new_axys.x_max, new_axys.y_min, new_axys.y_max);
     if (swap_xy)
-        printf("    xinput set-int-prop \"%s\" \"Evdev Axes Swap\" 8 %d\n", device_name, new_swap_xy);
+        if (!no_instructions) printf("    xinput set-int-prop \"%s\" \"Evdev Axes Swap\" 8 %d\n", device_name, new_swap_xy);
 
     return true;
 }
