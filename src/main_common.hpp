@@ -428,7 +428,7 @@ Calibrator* main_common(int argc, char** argv)
 
     try {
         // next, try Evdev driver (with XID)
-        return new CalibratorEvdev(device_name, device_axys, verbose, device_id,
+        return new CalibratorEvdev(device_name, device_axys, verbose, no_instructions, device_id,
             thr_misclick, thr_doubleclick, output_type);
 
     } catch(WrongCalibratorException& x) {

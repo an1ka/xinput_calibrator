@@ -47,8 +47,7 @@ private:
 
     int old_swap_xy;
 public:
-    CalibratorEvdev(const char* const device_name, const XYinfo& axys, const bool verbose,
-	const bool no_instructions_, 
+    CalibratorEvdev(const char* const device_name, const XYinfo& axys, const bool verbose, const bool no_instructions_,
         XID device_id=(XID)-1, const int thr_misclick=0, const int thr_doubleclick=0,
         const OutputType output_type=OUTYPE_AUTO);
     ~CalibratorEvdev();
@@ -201,10 +200,10 @@ bool CalibratorEvdev::finish_data(const XYinfo new_axys, int swap_xy)
         success &= ok;
 
         if (verbose) {
-            if (ok)
-                 {if (!no_instructions) printf("DEBUG: Successfully swapped X and Y axis.\n");}
+            if (ok && !no_instructions)
+                 printf("DEBUG: Successfully swapped X and Y axis.\n");
             else
-                 {if (!no_instructions) printf("DEBUG: Failed to swap X and Y axis.\n");}
+                 printf("DEBUG: Failed to swap X and Y axis.\n");
         }
     }
 
@@ -214,10 +213,10 @@ bool CalibratorEvdev::finish_data(const XYinfo new_axys, int swap_xy)
     success &= ok;
 
     if (verbose) {
-        if (ok)
-            if (!no_instructions) {printf("DEBUG: Successfully applied axis calibration.\n");}
+        if (ok && !no_instructions)
+            printf("DEBUG: Successfully applied axis calibration.\n");
         else
-            if (!no_instructions) {printf("DEBUG: Failed to apply axis calibration.\n");}
+            printf("DEBUG: Failed to apply axis calibration.\n");
     }
     // close
     XSync(display, False);
@@ -471,7 +470,7 @@ bool CalibratorEvdev::output_xorgconfd(const XYinfo new_axys, int swap_xy, int n
 {
     const char* sysfs_name = get_sysfs_name();
     bool not_sysfs_name = (sysfs_name == NULL);
-    if (not_sysfs_name && !no_instructions)
+    if (not_sysfs_name)
         sysfs_name = "!!Name_Of_TouchScreen!!";
 
     
@@ -497,7 +496,7 @@ bool CalibratorEvdev::output_hal(const XYinfo new_axys, int swap_xy, int new_swa
 {
     const char* sysfs_name = get_sysfs_name();
     bool not_sysfs_name = (sysfs_name == NULL);
-    if (not_sysfs_name && !no_instructions)
+    if (not_sysfs_name)
         sysfs_name = "!!Name_Of_TouchScreen!!";
 
    if (!no_instructions)
